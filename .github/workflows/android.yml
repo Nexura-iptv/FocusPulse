@@ -23,12 +23,11 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Locate Android Project & Build APK
+      - name: Locate Project & Prepare Required Files
         env:
-          GRADLE_OPTS: "-Djava.awt.headless=true -Dfile.encoding=UTF-8 -Xmx4096m -XX:MaxMetaspaceSize=1024m"
-          JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
+          GRADLE_OPTS: "-Djava.awt.headless=true -Dfile.encoding=UTF-8 -Xmx4096m"
         run: |
-          echo "Android projesi aranıyor..."
+          echo "Android projesi tespit ediliyor..."
           SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
           
           if [ -z "$SETTINGS_FILE" ]; then
@@ -39,23 +38,43 @@ jobs:
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
           echo "Proje dizini: $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          
-          # 1. .env ve .env.example dosyalarını oluştur
+
+          # 1. build.gradle.kts'in beklediği ${rootDir}/debug.keystore dosyasını oluştur
+          if [ ! -f "debug.keystore" ]; then
+            echo "debug.keystore oluşturuluyor..."
+            keytool -genkey -v -keystore debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # 2. .env ve .env.example dosyalarını oluştur
           touch .env
           if [ ! -f ".env.example" ]; then
             echo "GEMINI_API_KEY=dummy_key" > .env.example
           fi
 
-          # 2. validateSigningDebug için varsayılan debug.keystore oluştur
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            keytool -genkey -v -keystore ~/.android/debug.keystore \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+          # 3. google-services.json eksikliğini önlemek için dummy dosya oluştur
+          mkdir -p app
+          if [ ! -f "app/google-services.json" ]; then
+            echo '{
+              "project_info": {
+                "project_number": "1234567890",
+                "project_id": "focuspulse-dummy"
+              },
+              "client": [{
+                "client_info": {
+                  "mobilesdk_app_id": "1:1234567890:android:abcdef",
+                  "android_client_info": {
+                    "package_name": "com.example"
+                  }
+                }
+              }],
+              "configuration_version": "1"
+            }' > app/google-services.json
           fi
-          
-          # 3. APK derlemesini çalıştır (headless ve single-daemon ile)
+
+          # 4. KSP / Gradle çakışmasını engellemek için daemon olmadan derle
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
             ./gradlew assembleDebug --no-daemon --stacktrace
