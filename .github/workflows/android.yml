@@ -23,26 +23,30 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
+      - name: Locate Android Project & Build APK
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-          elif [ -f "FocusPulse/focuspulse-docpk/gradlew" ]; then
-            chmod +x FocusPulse/focuspulse-docpk/gradlew
+          echo "Dizin yapısı inceleniyor..."
+          # settings.gradle veya settings.gradle.kts dosyasını bul
+          SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
+          
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "HATA: settings.gradle dosyası bulunamadı!"
+            ls -la
+            exit 1
           fi
-
-      - name: Build Debug APK
-        run: |
-          if [ -d "FocusPulse/focuspulse-docpk" ]; then
-            cd FocusPulse/focuspulse-docpk
-          fi
+          
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "Android projesi bulundu: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          
           if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
             ./gradlew assembleDebug --stacktrace
           else
             gradle assembleDebug --stacktrace
           fi
 
-      - name: Locate & Upload APK Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: FocusPulse-Debug-APK
