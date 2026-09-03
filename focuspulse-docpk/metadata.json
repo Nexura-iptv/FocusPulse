@@ -1,0 +1,6 @@
+{
+  "name": "FocusPulse",
+  "description": "20-20-20 göz koruması, özelleştirilebilir Pomodoro, 1-12/YKS/AYT/KPSS dersleri, sentetik ambiyans sesleri ve YouTube entegrasyonlu odak platformu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
