@@ -24,6 +24,9 @@ jobs:
           cache: gradle
 
       - name: Locate Android Project & Build APK
+        env:
+          GRADLE_OPTS: "-Djava.awt.headless=true -Dfile.encoding=UTF-8 -Xmx4096m -XX:MaxMetaspaceSize=1024m"
+          JAVA_TOOL_OPTIONS: "-Djava.awt.headless=true"
         run: |
           echo "Android projesi aranıyor..."
           SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
@@ -37,17 +40,27 @@ jobs:
           echo "Proje dizini: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           
-          # Secrets Gradle eklentisi için .env ve .env.example dosyalarını otomatik oluştur
+          # 1. .env ve .env.example dosyalarını oluştur
           touch .env
           if [ ! -f ".env.example" ]; then
             echo "GEMINI_API_KEY=dummy_key" > .env.example
           fi
+
+          # 2. validateSigningDebug için varsayılan debug.keystore oluştur
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkey -v -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
           
+          # 3. APK derlemesini çalıştır (headless ve single-daemon ile)
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew assembleDebug --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace
           else
-            gradle assembleDebug --stacktrace
+            gradle assembleDebug --no-daemon --stacktrace
           fi
 
       - name: Upload APK Artifact
