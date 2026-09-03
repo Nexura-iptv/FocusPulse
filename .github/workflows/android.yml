@@ -25,19 +25,23 @@ jobs:
 
       - name: Locate Android Project & Build APK
         run: |
-          echo "Dizin yapısı inceleniyor..."
-          # settings.gradle veya settings.gradle.kts dosyasını bul
+          echo "Android projesi aranıyor..."
           SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
           
           if [ -z "$SETTINGS_FILE" ]; then
             echo "HATA: settings.gradle dosyası bulunamadı!"
-            ls -la
             exit 1
           fi
           
           PROJECT_DIR=$(dirname "$SETTINGS_FILE")
-          echo "Android projesi bulundu: $PROJECT_DIR"
+          echo "Proje dizini: $PROJECT_DIR"
           cd "$PROJECT_DIR"
+          
+          # Secrets Gradle eklentisi için .env ve .env.example dosyalarını otomatik oluştur
+          touch .env
+          if [ ! -f ".env.example" ]; then
+            echo "GEMINI_API_KEY=dummy_key" > .env.example
+          fi
           
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
