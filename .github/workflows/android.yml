@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Generate APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+          elif [ -f "FocusPulse/focuspulse-docpk/gradlew" ]; then
+            chmod +x FocusPulse/focuspulse-docpk/gradlew
+          fi
+
+      - name: Build Debug APK
+        run: |
+          if [ -d "FocusPulse/focuspulse-docpk" ]; then
+            cd FocusPulse/focuspulse-docpk
+          fi
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Locate & Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FocusPulse-Debug-APK
+          path: |
+            **/build/outputs/apk/debug/*.apk
+          retention-days: 14
