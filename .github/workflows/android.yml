@@ -39,7 +39,7 @@ jobs:
           echo "Proje dizini: $PROJECT_DIR"
           cd "$PROJECT_DIR"
 
-          # 1. build.gradle.kts'in beklediği ${rootDir}/debug.keystore dosyasını oluştur
+          # 1. build.gradle.kts için debug.keystore oluştur
           if [ ! -f "debug.keystore" ]; then
             echo "debug.keystore oluşturuluyor..."
             keytool -genkey -v -keystore debug.keystore \
@@ -54,27 +54,41 @@ jobs:
             echo "GEMINI_API_KEY=dummy_key" > .env.example
           fi
 
-          # 3. google-services.json eksikliğini önlemek için dummy dosya oluştur
+          # 3. Google Services plugin için api_key içeren tam google-services.json oluştur
           mkdir -p app
-          if [ ! -f "app/google-services.json" ]; then
-            echo '{
-              "project_info": {
-                "project_number": "1234567890",
-                "project_id": "focuspulse-dummy"
-              },
-              "client": [{
+          cat << 'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "focuspulse-dummy",
+              "storage_bucket": "focuspulse-dummy.appspot.com"
+            },
+            "client": [
+              {
                 "client_info": {
-                  "mobilesdk_app_id": "1:1234567890:android:abcdef",
+                  "mobilesdk_app_id": "1:123456789012:android:abcdef1234567890",
                   "android_client_info": {
                     "package_name": "com.example"
                   }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "AIzaSyDummyKeyForGoogleServicesPlugin12345"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
                 }
-              }],
-              "configuration_version": "1"
-            }' > app/google-services.json
-          fi
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
 
-          # 4. KSP / Gradle çakışmasını engellemek için daemon olmadan derle
+          # 4. APK derlemesini çalıştır
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
             ./gradlew assembleDebug --no-daemon --stacktrace
