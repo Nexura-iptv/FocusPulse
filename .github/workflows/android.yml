@@ -24,8 +24,6 @@ jobs:
           cache: gradle
 
       - name: Locate Project & Build APK
-        env:
-          GRADLE_OPTS: "-Djava.awt.headless=true -Dfile.encoding=UTF-8 -Xmx4096m"
         run: |
           echo "Android projesi aranıyor..."
           SETTINGS_FILE=$(find . -maxdepth 3 -name "settings.gradle*" | head -n 1)
@@ -39,11 +37,13 @@ jobs:
           echo "Proje dizini: $PROJECT_DIR"
           cd "$PROJECT_DIR"
 
-          # 1. KSP / AWT çakışmasını önleyen gradle.properties ayarlarını ekle
-          cat << 'EOF' >> gradle.properties
-          kotlin.compiler.execution.strategy=in-process
+          # 1. KSP ve Gradle için kararlı konfigürasyon
+          cat << 'EOF' > gradle.properties
+          org.gradle.jvmargs=-Xmx4096m -Djava.awt.headless=true -Dfile.encoding=UTF-8
+          org.gradle.parallel=false
+          ksp.incremental=false
           ksp.use.worker.api=false
-          org.gradle.jvmargs=-Xmx4096m -Djava.awt.headless=true
+          kotlin.compiler.execution.strategy=in-process
           EOF
 
           # 2. build.gradle.kts için debug.keystore oluştur
@@ -55,13 +55,13 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-          # 3. .env ve .env.example dosyalarını oluştur
+          # 3. .env ve .env.example oluştur
           touch .env
           if [ ! -f ".env.example" ]; then
             echo "GEMINI_API_KEY=dummy_key" > .env.example
           fi
 
-          # 4. Google Services için api_key içeren google-services.json oluştur
+          # 4. google-services.json oluştur
           mkdir -p app
           cat << 'EOF' > app/google-services.json
           {
@@ -95,16 +95,19 @@ jobs:
           }
           EOF
 
-          # 5. Sanal X11 ekranı (xvfb) ile derlemeyi çalıştır (AWT EventQueue çökmesini tamamen önler)
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            xvfb-run ./gradlew assembleDebug --no-daemon --stacktrace
+          # 5. Derleme komutunu çalıştır
+          GRADLE_CMD="./gradlew"
+          if [ ! -f "./gradlew" ]; then
+            GRADLE_CMD="gradle"
           else
-            xvfb-run gradle assembleDebug --no-daemon --stacktrace
+            chmod +x ./gradlew
           fi
+
+          $GRADLE_CMD assembleDebug --no-daemon --max-workers=2 -Djava.awt.headless=true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: FocusPulse-Debug-APK
           path: |
